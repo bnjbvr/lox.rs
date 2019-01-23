@@ -1,17 +1,16 @@
 use std::env;
-use std::process;
+use std::fmt;
+use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::fs::File;
-use std::fmt;
+use std::process;
 
 mod errors;
 mod tokens;
 
-use errors::{ LoxResult, report_error };
+use errors::{report_error, LoxResult};
 
-struct Token {
-}
+struct Token {}
 
 impl fmt::Display for Token {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -19,8 +18,7 @@ impl fmt::Display for Token {
     }
 }
 
-struct Scanner {
-}
+struct Scanner {}
 
 impl Scanner {
     fn new(script: &str) -> Self {
@@ -28,7 +26,7 @@ impl Scanner {
     }
 
     fn scan_tokens(self) -> Vec<Token> {
-        vec!()
+        vec![]
     }
 }
 
@@ -84,12 +82,8 @@ fn main() {
     let args: Vec<_> = env::args().skip(1).collect();
 
     let result = match args.len() {
-        0 => {
-            run_prompt()
-        },
-        1 => {
-            run_file(args[0].as_str())
-        },
+        0 => run_prompt(),
+        1 => run_file(args[0].as_str()),
         _ => {
             eprintln!("Usage: lox [script]");
             process::exit(64);
@@ -97,7 +91,7 @@ fn main() {
     };
 
     match result {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(err) => {
             eprintln!("Error when running script: {}", err);
             process::exit(1);

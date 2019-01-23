@@ -48,22 +48,18 @@ pub enum TokenType {
     Var,
     While,
 
-    EOF
+    EOF,
 }
 
 pub struct Token {
     which: TokenType,
     lexem: String,
-    line: u32
+    line: u32,
 }
 
 impl Token {
     fn new(which: TokenType, lexem: String, line: u32) -> Token {
-        Token {
-            which,
-            lexem,
-            line
-        }
+        Token { which, lexem, line }
     }
 }
 

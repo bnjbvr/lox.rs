@@ -1,33 +1,35 @@
 use std::error::Error;
-use std::ops::Deref;
 use std::fmt;
 use std::io;
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct OwnError {
     line: u32,
     context: String,
-    msg: String
+    msg: String,
 }
 
 impl OwnError {
-    fn new(line: u32, context: String, msg: String) -> Self{
-        Self {
-            line, context, msg
-        }
+    fn new(line: u32, context: String, msg: String) -> Self {
+        Self { line, context, msg }
     }
 }
 
 impl fmt::Display for OwnError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(formatter, "[{}] Error {}: {}", self.line, self.context, &self.msg)
+        writeln!(
+            formatter,
+            "[{}] Error {}: {}",
+            self.line, self.context, &self.msg
+        )
     }
 }
 
 #[derive(Debug)]
 pub enum LoxError {
     Own(OwnError),
-    Other(Box<Error>)
+    Other(Box<Error>),
 }
 
 impl From<io::Error> for LoxError {
@@ -39,12 +41,8 @@ impl From<io::Error> for LoxError {
 impl fmt::Display for LoxError {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LoxError::Own(err) => {
-                err.fmt(formatter)
-            }
-            LoxError::Other(err) => {
-                err.fmt(formatter)
-            }
+            LoxError::Own(err) => err.fmt(formatter),
+            LoxError::Other(err) => err.fmt(formatter),
         }
     }
 }
@@ -53,7 +51,7 @@ impl Error for LoxError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             LoxError::Other(boxed) => Some(boxed.deref()),
-            _ => None
+            _ => None,
         }
     }
 }
