@@ -5,13 +5,13 @@ use std::ops::Deref;
 
 #[derive(Debug)]
 pub struct OwnError {
-    line: u32,
+    line: usize,
     context: String,
     msg: String,
 }
 
 impl OwnError {
-    fn new(line: u32, context: String, msg: String) -> Self {
+    fn new(line: usize, context: String, msg: String) -> Self {
         Self { line, context, msg }
     }
 }
@@ -56,8 +56,40 @@ impl Error for LoxError {
     }
 }
 
-pub type LoxResult = Result<(), LoxError>;
+pub type LoxResult<T> = Result<T, LoxError>;
+pub type LoxDiag<T> = Result<T, Vec<LoxError>>;
 
-pub fn report_error(line: u32, context: String, msg: String) -> LoxResult {
+pub enum DisplayableError {
+    s(String),
+    errors(Vec<LoxError>),
+}
+
+impl From<String> for DisplayableError {
+    fn from(s: String) -> DisplayableError {
+        DisplayableError::s(s)
+    }
+}
+
+impl From<Vec<LoxError>> for DisplayableError {
+    fn from(v: Vec<LoxError>) -> DisplayableError {
+        DisplayableError::errors(v)
+    }
+}
+
+pub fn report_error<T>(
+    line: usize,
+    context: String,
+    msg: impl Into<DisplayableError>,
+) -> LoxResult<T> {
+    let msg = match msg.into() {
+        DisplayableError::s(s) => s,
+        DisplayableError::errors(errors) => errors
+            .iter()
+            .map(|err| match err {
+                LoxError::Own(own) => format!("{}", own),
+                LoxError::Other(other) => format!("{}", other),
+            })
+            .fold("".to_string(), |acc, x| format!("{}\n{}", acc, x)),
+    };
     Err(LoxError::Own(OwnError::new(line, context, msg)))
 }

@@ -54,11 +54,11 @@ pub enum TokenType {
 pub struct Token {
     which: TokenType,
     lexem: String,
-    line: u32,
+    line: usize,
 }
 
 impl Token {
-    fn new(which: TokenType, lexem: String, line: u32) -> Token {
+    pub fn new(which: TokenType, lexem: String, line: usize) -> Token {
         Token { which, lexem, line }
     }
 }

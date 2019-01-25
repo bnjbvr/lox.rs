@@ -8,14 +8,19 @@ mod errors;
 mod scanner;
 mod tokens;
 
-use errors::LoxResult;
+use errors::{report_error, LoxResult};
 use scanner::Scanner;
 
-fn run(script: &str) -> LoxResult {
+fn run(script: &str) -> LoxResult<()> {
     println!("Running: {}", script);
 
     let scanner = Scanner::new(script);
-    let tokens = scanner.scan_tokens();
+    let tokens = match scanner.scan_tokens() {
+        Err(errors) => {
+            return report_error(0, "when scanning tokens".to_string(), errors);
+        }
+        Ok(tokens) => tokens,
+    };
 
     for token in tokens {
         println!("{}", token);
@@ -24,7 +29,7 @@ fn run(script: &str) -> LoxResult {
     Ok(())
 }
 
-fn run_file(path: &str) -> LoxResult {
+fn run_file(path: &str) -> LoxResult<()> {
     println!("Running file {}", path);
 
     let mut file = File::open(path)?;
@@ -34,7 +39,7 @@ fn run_file(path: &str) -> LoxResult {
     run(&script_content)
 }
 
-fn run_prompt() -> LoxResult {
+fn run_prompt() -> LoxResult<()> {
     println!("Running prompt.");
 
     let stdout = io::stdout();
