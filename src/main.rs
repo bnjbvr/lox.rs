@@ -1,34 +1,15 @@
 use std::env;
-use std::fmt;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::process;
 
 mod errors;
+mod scanner;
 mod tokens;
 
-use errors::{report_error, LoxResult};
-
-struct Token {}
-
-impl fmt::Display for Token {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        Ok(())
-    }
-}
-
-struct Scanner {}
-
-impl Scanner {
-    fn new(script: &str) -> Self {
-        Self {}
-    }
-
-    fn scan_tokens(self) -> Vec<Token> {
-        vec![]
-    }
-}
+use errors::LoxResult;
+use scanner::Scanner;
 
 fn run(script: &str) -> LoxResult {
     println!("Running: {}", script);
