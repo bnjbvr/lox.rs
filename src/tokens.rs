@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TokenType {
     // Single char.
     LeftParen,
@@ -52,7 +52,7 @@ pub enum TokenType {
 }
 
 pub struct Token<'source> {
-    which: TokenType,
+    pub which: TokenType, // TODO public?
     lexem: &'source str,
     line: usize,
 }

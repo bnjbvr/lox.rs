@@ -30,9 +30,15 @@ impl<'source> Scanner<'source> {
 
         loop {
             self.start = self.current;
-            if let Err(err) = self.scan_token() {
-                errors.push(err);
-                break;
+            match self.scan_token() {
+                Ok(has_more) => {
+                    if !has_more {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    errors.push(err);
+                }
             }
         }
 
@@ -41,6 +47,22 @@ impl<'source> Scanner<'source> {
             Ok(self.tokens)
         } else {
             Err(errors)
+        }
+    }
+
+    fn add_token(&mut self, which: TokenType) {
+        self.tokens.push(Token::new(which, "", self.line));
+    }
+
+    fn add_token_str(&mut self, which: TokenType, s: &'source str) {
+        self.tokens.push(Token::new(which, s, self.line));
+    }
+
+    fn matches(&mut self, expected: char) -> bool {
+        if let Some(observed) = self.peek() {
+            observed == expected
+        } else {
+            false
         }
     }
 
@@ -53,12 +75,12 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    fn add_token(&mut self, which: TokenType) {
-        self.tokens.push(Token::new(which, "", self.line));
-    }
-
-    fn add_token_str(&mut self, which: TokenType, s: &'source str) {
-        self.tokens.push(Token::new(which, s, self.line));
+    fn peek(&mut self) -> Option<char> {
+        if let Some((_, c)) = self.source_iter.peek() {
+            Some(*c)
+        } else {
+            None
+        }
     }
 
     fn scan_token(&mut self) -> LoxResult<bool> {
@@ -67,6 +89,8 @@ impl<'source> Scanner<'source> {
             return Ok(false);
         }
         let c = c.unwrap();
+
+        println!("Read char is {}", c);
 
         match c {
             '(' => {
@@ -99,6 +123,56 @@ impl<'source> Scanner<'source> {
             '*' => {
                 self.add_token(TokenType::Star);
             }
+            '!' => {
+                let token_type = if self.matches('=') {
+                    TokenType::BangEqual
+                } else {
+                    TokenType::Bang
+                };
+                self.add_token(token_type);
+            }
+            '=' => {
+                let token_type = if self.matches('=') {
+                    TokenType::EqualEqual
+                } else {
+                    TokenType::Equal
+                };
+                self.add_token(token_type);
+            }
+            '<' => {
+                let token_type = if self.matches('=') {
+                    TokenType::LessEqual
+                } else {
+                    TokenType::Less
+                };
+                self.add_token(token_type);
+            }
+            '>' => {
+                let token_type = if self.matches('=') {
+                    TokenType::GreaterEqual
+                } else {
+                    TokenType::Greater
+                };
+                self.add_token(token_type);
+            }
+            '/' => {
+                if self.matches('/') {
+                    // A comment goes until the end of the line.
+                    while let Some(c) = self.peek() {
+                        if c != '\n' {
+                            self.advance().unwrap();
+                        } else {
+                            break;
+                        }
+                    }
+                } else {
+                    self.add_token(TokenType::Slash);
+                }
+            }
+            c if c == ' ' || c == '\t' || c == '\r' => {
+                // Do nothing for whitespace.
+            }
+            '\n' => self.line += 1,
             _ => {
                 report_error(
                     self.line,
@@ -110,4 +184,52 @@ impl<'source> Scanner<'source> {
 
         Ok(true)
     }
+}
+
+#[test]
+fn test_empty() {
+    let s = Scanner::new("");
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].which, TokenType::EOF);
+}
+
+#[test]
+fn test_comments() {
+    let s = Scanner::new("// hello world");
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].which, TokenType::EOF);
+}
+
+#[test]
+fn test_empty_multilines() {
+    let s = Scanner::new(
+        r#"// hello world
+
+    "#,
+    );
+
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].which, TokenType::EOF);
+}
+
+#[test]
+fn test_multines() {
+    let s = Scanner::new(
+        r#"
+    {} // inline comment {}
+    /;*
+"#,
+    );
+
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 6);
+    assert_eq!(tokens[0].which, TokenType::LeftBrace);
+    assert_eq!(tokens[1].which, TokenType::RightBrace);
+    assert_eq!(tokens[2].which, TokenType::Slash);
+    assert_eq!(tokens[3].which, TokenType::Semi);
+    assert_eq!(tokens[4].which, TokenType::Star);
+    assert_eq!(tokens[5].which, TokenType::EOF);
 }
