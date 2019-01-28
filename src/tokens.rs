@@ -51,19 +51,19 @@ pub enum TokenType {
     EOF,
 }
 
-pub struct Token {
+pub struct Token<'source> {
     which: TokenType,
-    lexem: String,
+    lexem: &'source str,
     line: usize,
 }
 
-impl Token {
-    pub fn new(which: TokenType, lexem: String, line: usize) -> Token {
+impl<'source> Token<'source> {
+    pub fn new(which: TokenType, lexem: &'source str, line: usize) -> Token {
         Token { which, lexem, line }
     }
 }
 
-impl fmt::Display for Token {
+impl<'source> fmt::Display for Token<'source> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         writeln!(fmt, "{:?} at line {}", self.which, self.line)
     }

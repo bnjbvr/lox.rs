@@ -10,7 +10,7 @@ pub struct Scanner<'source> {
     start: usize,
     current: usize,
     line: usize,
-    tokens: Vec<Token>,
+    tokens: Vec<Token<'source>>,
 }
 
 impl<'source> Scanner<'source> {
@@ -25,7 +25,7 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    pub fn scan_tokens(mut self) -> LoxDiag<Vec<Token>> {
+    pub fn scan_tokens(mut self) -> LoxDiag<Vec<Token<'source>>> {
         let mut errors = vec![];
 
         loop {
@@ -36,8 +36,7 @@ impl<'source> Scanner<'source> {
             }
         }
 
-        self.tokens
-            .push(Token::new(TokenType::EOF, "".to_string(), self.line));
+        self.tokens.push(Token::new(TokenType::EOF, "", self.line));
         if errors.len() == 0 {
             Ok(self.tokens)
         } else {
@@ -55,13 +54,11 @@ impl<'source> Scanner<'source> {
     }
 
     fn add_token(&mut self, which: TokenType) {
-        self.tokens
-            .push(Token::new(which, "".to_string(), self.line));
+        self.tokens.push(Token::new(which, "", self.line));
     }
 
     fn add_token_str(&mut self, which: TokenType, s: &'source str) {
-        self.tokens
-            .push(Token::new(which, s.to_string(), self.line));
+        self.tokens.push(Token::new(which, s, self.line));
     }
 
     fn scan_token(&mut self) -> LoxResult<bool> {
