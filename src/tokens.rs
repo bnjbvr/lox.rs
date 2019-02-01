@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub enum TokenType {
+pub enum TokenType<'source> {
     // Single char.
     LeftParen,
     RightParen,
@@ -26,8 +26,8 @@ pub enum TokenType {
     LessEqual,
 
     // Literals.
-    Identifier(String),
-    String(String),
+    Identifier(&'source str),
+    String(&'source str),
     Number(f64),
 
     // Keywords.
@@ -52,13 +52,13 @@ pub enum TokenType {
 }
 
 pub struct Token<'source> {
-    pub which: TokenType, // TODO public?
+    pub which: TokenType<'source>, // TODO public?
     lexem: &'source str,
     line: usize,
 }
 
 impl<'source> Token<'source> {
-    pub fn new(which: TokenType, lexem: &'source str, line: usize) -> Token {
+    pub fn new(which: TokenType<'source>, lexem: &'source str, line: usize) -> Token<'source> {
         Token { which, lexem, line }
     }
 }

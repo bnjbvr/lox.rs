@@ -2,6 +2,7 @@ use crate::errors::{report_error, LoxDiag, LoxResult};
 use crate::tokens::{Token, TokenType};
 
 use std::iter::Peekable;
+use std::str;
 use std::str::CharIndices;
 
 pub struct Scanner<'source> {
@@ -29,7 +30,6 @@ impl<'source> Scanner<'source> {
         let mut errors = vec![];
 
         loop {
-            self.start = self.current;
             match self.scan_token() {
                 Ok(has_more) => {
                     if !has_more {
@@ -50,12 +50,8 @@ impl<'source> Scanner<'source> {
         }
     }
 
-    fn add_token(&mut self, which: TokenType) {
+    fn add_token(&mut self, which: TokenType<'source>) {
         self.tokens.push(Token::new(which, "", self.line));
-    }
-
-    fn add_token_str(&mut self, which: TokenType, s: &'source str) {
-        self.tokens.push(Token::new(which, s, self.line));
     }
 
     fn matches(&mut self, expected: char) -> bool {
@@ -66,9 +62,11 @@ impl<'source> Scanner<'source> {
         }
     }
 
+    /// Returns the character read at the current position (and set current to
+    /// the new position).
     fn advance(&mut self) -> Option<char> {
         if let Some((i, ch)) = self.source_iter.next() {
-            self.current += i;
+            self.current = i;
             Some(ch)
         } else {
             None
@@ -83,11 +81,83 @@ impl<'source> Scanner<'source> {
         }
     }
 
+    fn peek_next(&self) -> Option<char> {
+        let mut clone = self.source_iter.clone();
+        if let Some(_) = clone.next() {
+            if let Some((_, c)) = clone.peek() {
+                return Some(*c);
+            }
+        }
+        None
+    }
+
+    fn scan_string(&mut self) -> LoxResult<()> {
+        while let Some(c) = self.peek() {
+            if c == '\n' {
+                self.line += 1;
+            }
+            self.advance().unwrap();
+            if c == '"' {
+                let substr =
+                    str::from_utf8(&self.source.as_bytes()[self.start + 1..self.current]).unwrap();
+                self.add_token(TokenType::String(substr));
+                return Ok(());
+            }
+        }
+        report_error(
+            self.line,
+            "when reading a string".to_string(),
+            "unterminated string".to_string(),
+        )
+    }
+
+    fn scan_number(&mut self, first_digit: char) -> LoxResult<()> {
+        let mut number = first_digit.to_digit(10).unwrap() as f64;
+        let mut fractional_power_of_ten: Option<f64> = None;
+
+        while let Some(c) = self.peek() {
+            if is_digit(c) {
+                self.advance().unwrap();
+                let c_num = c.to_digit(10).unwrap() as f64;
+                if let Some(decimal) = fractional_power_of_ten.as_mut() {
+                    number += c_num * *decimal;
+                    *decimal /= 10.0;
+                } else {
+                    number *= 10.0;
+                    number += c_num;
+                }
+            } else if c == '.' {
+                if let Some(d) = self.peek_next() {
+                    if is_digit(d) {
+                        self.advance().unwrap();
+                        if fractional_power_of_ten.is_some() {
+                            return report_error(
+                                self.line,
+                                "when parsing a number".to_string(),
+                                "unexpected dot".to_string(),
+                            )?;
+                        }
+                        fractional_power_of_ten = Some(0.1);
+                        continue;
+                    }
+                }
+                break;
+            } else {
+                break;
+            }
+        }
+
+        self.add_token(TokenType::Number(number));
+        Ok(())
+    }
+
     fn scan_token(&mut self) -> LoxResult<bool> {
         let c = self.advance();
         if c.is_none() {
             return Ok(false);
         }
+
+        self.start = self.current;
         let c = c.unwrap();
 
         println!("Read char is {}", c);
@@ -96,33 +166,43 @@ impl<'source> Scanner<'source> {
             '(' => {
                 self.add_token(TokenType::LeftParen);
             }
+
             ')' => {
                 self.add_token(TokenType::RightParen);
             }
+
             '{' => {
                 self.add_token(TokenType::LeftBrace);
             }
+
             '}' => {
                 self.add_token(TokenType::RightBrace);
             }
+
             ',' => {
                 self.add_token(TokenType::Comma);
             }
+
             '.' => {
                 self.add_token(TokenType::Dot);
             }
+
             '-' => {
                 self.add_token(TokenType::Minus);
             }
+
             '+' => {
                 self.add_token(TokenType::Plus);
             }
+
             ';' => {
                 self.add_token(TokenType::Semi);
             }
+
             '*' => {
                 self.add_token(TokenType::Star);
             }
+
             '!' => {
                 let token_type = if self.matches('=') {
                     TokenType::BangEqual
@@ -131,6 +211,7 @@ impl<'source> Scanner<'source> {
                 };
                 self.add_token(token_type);
             }
+
             '=' => {
                 let token_type = if self.matches('=') {
                     TokenType::EqualEqual
@@ -139,6 +220,7 @@ impl<'source> Scanner<'source> {
                 };
                 self.add_token(token_type);
             }
+
             '<' => {
                 let token_type = if self.matches('=') {
                     TokenType::LessEqual
@@ -147,6 +229,7 @@ impl<'source> Scanner<'source> {
                 };
                 self.add_token(token_type);
             }
+
             '>' => {
                 let token_type = if self.matches('=') {
                     TokenType::GreaterEqual
@@ -155,6 +238,7 @@ impl<'source> Scanner<'source> {
                 };
                 self.add_token(token_type);
             }
+
             '/' => {
                 if self.matches('/') {
                     // A comment goes until the end of the line.
@@ -169,10 +253,21 @@ impl<'source> Scanner<'source> {
                     self.add_token(TokenType::Slash);
                 }
             }
+
             c if c == ' ' || c == '\t' || c == '\r' => {
                 // Do nothing for whitespace.
             }
+
+            '"' => {
+                self.scan_string()?;
+            }
+
+            c if is_digit(c) => {
+                self.scan_number(c)?;
+            }
+
             '\n' => self.line += 1,
+
             _ => {
                 report_error(
                     self.line,
@@ -184,6 +279,10 @@ impl<'source> Scanner<'source> {
 
         Ok(true)
     }
+}
+
+fn is_digit(c: char) -> bool {
+    c >= '0' && c <= '9'
 }
 
 #[test]
@@ -232,4 +331,52 @@ fn test_multines() {
     assert_eq!(tokens[3].which, TokenType::Semi);
     assert_eq!(tokens[4].which, TokenType::Star);
     assert_eq!(tokens[5].which, TokenType::EOF);
+}
+
+#[test]
+fn test_scan_string() {
+    let s = Scanner::new(
+        r#"
+    "terminated 42 string"
+"#,
+    );
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].which, TokenType::String("terminated 42 string"));
+    assert_eq!(tokens[1].which, TokenType::EOF);
+
+    let s = Scanner::new(
+        r#"
+    "unterminated 42 string
+"#,
+    );
+    assert!(s.scan_tokens().is_err());
+}
+
+#[test]
+fn test_scan_number() {
+    let s = Scanner::new("423298");
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].which, TokenType::Number(423298.0));
+    assert_eq!(tokens[1].which, TokenType::EOF);
+
+    let s = Scanner::new("423298.0");
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].which, TokenType::Number(423298.0));
+    assert_eq!(tokens[1].which, TokenType::EOF);
+
+    let s = Scanner::new("423298.");
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 3);
+    assert_eq!(tokens[0].which, TokenType::Number(423298.0));
+    assert_eq!(tokens[1].which, TokenType::Dot);
+    assert_eq!(tokens[2].which, TokenType::EOF);
+
+    let s = Scanner::new(" 12.34  ");
+    let tokens = s.scan_tokens().unwrap();
+    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens[0].which, TokenType::Number(12.34));
+    assert_eq!(tokens[1].which, TokenType::EOF);
 }
