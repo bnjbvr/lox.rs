@@ -60,19 +60,19 @@ pub type LoxResult<T> = Result<T, LoxError>;
 pub type LoxDiag<T> = Result<T, Vec<LoxError>>;
 
 pub enum DisplayableError {
-    s(String),
-    errors(Vec<LoxError>),
+    String(String),
+    Errors(Vec<LoxError>),
 }
 
 impl From<String> for DisplayableError {
     fn from(s: String) -> DisplayableError {
-        DisplayableError::s(s)
+        DisplayableError::String(s)
     }
 }
 
 impl From<Vec<LoxError>> for DisplayableError {
     fn from(v: Vec<LoxError>) -> DisplayableError {
-        DisplayableError::errors(v)
+        DisplayableError::Errors(v)
     }
 }
 
@@ -82,8 +82,8 @@ pub fn report_error<T>(
     msg: impl Into<DisplayableError>,
 ) -> LoxResult<T> {
     let msg = match msg.into() {
-        DisplayableError::s(s) => s,
-        DisplayableError::errors(errors) => errors
+        DisplayableError::String(s) => s,
+        DisplayableError::Errors(errors) => errors
             .iter()
             .map(|err| match err {
                 LoxError::Own(own) => format!("{}", own),

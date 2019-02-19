@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType<'source> {
     // Single char.
     LeftParen,
@@ -65,6 +65,6 @@ impl<'source> Token<'source> {
 
 impl<'source> fmt::Display for Token<'source> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(fmt, "{:?} at line {}", self.which, self.line)
+        write!(fmt, "{:?} at line {}", self.which, self.line)
     }
 }

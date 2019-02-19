@@ -1,9 +1,33 @@
 use crate::errors::{report_error, LoxDiag, LoxResult};
 use crate::tokens::{Token, TokenType};
 
+use std::collections::HashMap;
 use std::iter::Peekable;
 use std::str;
 use std::str::CharIndices;
+
+lazy_static! {
+    static ref KEYWORDS: HashMap<&'static str, TokenType<'static>> = {
+        let mut m = HashMap::new();
+        m.insert("and", TokenType::And);
+        m.insert("class", TokenType::Class);
+        m.insert("else", TokenType::Else);
+        m.insert("false", TokenType::False);
+        m.insert("for", TokenType::For);
+        m.insert("fun", TokenType::Fun);
+        m.insert("if", TokenType::If);
+        m.insert("nil", TokenType::Nil);
+        m.insert("or", TokenType::Or);
+        m.insert("print", TokenType::Print);
+        m.insert("return", TokenType::Return);
+        m.insert("super", TokenType::Super);
+        m.insert("this", TokenType::This);
+        m.insert("true", TokenType::True);
+        m.insert("var", TokenType::Var);
+        m.insert("while", TokenType::While);
+        m
+    };
+}
 
 pub struct Scanner<'source> {
     source: &'source str,
@@ -151,6 +175,24 @@ impl<'source> Scanner<'source> {
         Ok(())
     }
 
+    fn scan_identifier(&mut self) -> LoxResult<()> {
+        while let Some(c) = self.peek() {
+            if !is_alpha_numeric(c) {
+                break;
+            }
+            self.advance().unwrap();
+        }
+
+        let substr = str::from_utf8(&self.source.as_bytes()[self.start..self.current + 1]).unwrap();
+
+        if let Some(token) = KEYWORDS.get(substr) {
+            self.add_token((*token).clone());
+        } else {
+            self.add_token(TokenType::Identifier(substr));
+        }
+        Ok(())
+    }
+
     fn scan_token(&mut self) -> LoxResult<bool> {
         let c = self.advance();
         if c.is_none() {
@@ -159,9 +201,6 @@ impl<'source> Scanner<'source> {
 
         self.start = self.current;
         let c = c.unwrap();
-
-        println!("Read char is {}", c);
-
         match c {
             '(' => {
                 self.add_token(TokenType::LeftParen);
@@ -266,6 +305,10 @@ impl<'source> Scanner<'source> {
                 self.scan_number(c)?;
             }
 
+            c if is_alpha(c) => {
+                self.scan_identifier()?;
+            }
+
             '\n' => self.line += 1,
 
             _ => {
@@ -283,6 +326,14 @@ impl<'source> Scanner<'source> {
 
 fn is_digit(c: char) -> bool {
     c >= '0' && c <= '9'
+}
+
+fn is_alpha(c: char) -> bool {
+    c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_'
+}
+
+fn is_alpha_numeric(c: char) -> bool {
+    is_digit(c) || is_alpha(c)
 }
 
 #[test]
